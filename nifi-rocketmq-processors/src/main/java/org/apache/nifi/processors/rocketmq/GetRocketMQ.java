@@ -16,20 +16,26 @@ import org.apache.nifi.processor.Relationship;
 import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.processor.util.StandardValidators;
 import org.apache.rocketmq.client.consumer.DefaultMQPullConsumer;
-import org.apache.rocketmq.client.consumer.store.ReadOffsetType;
 import org.apache.rocketmq.client.impl.consumer.PullResultExt;
 import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.common.message.MessageQueue;
+import org.apache.rocketmq.common.protocol.heartbeat.MessageModel;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 
 @CapabilityDescription("Fetches messages from RocketMQ")
 @Tags({"RocketMQ", "Get"})
 public class GetRocketMQ extends AbstractProcessor {
 
     private final List<PropertyDescriptor> DESCRIPTORS;
+
     private final Set<Relationship> RELATIONSHIPS;
+
+    private final ReentrantLock lock = new ReentrantLock();
+
+    private final Map<MessageQueue, Long> messageQueueOffsetMap = new LinkedHashMap<>();
 
     private final PropertyDescriptor TOPIC = new PropertyDescriptor.Builder()
             .name("TOPIC")
@@ -86,21 +92,19 @@ public class GetRocketMQ extends AbstractProcessor {
 
     @Override
     public void onTrigger(ProcessContext context, final ProcessSession session) throws ProcessException {
-        getLogger().info("start " + System.currentTimeMillis());
-        getLogger().info("OnTrigger: " + String.valueOf(consumer));
+        if (!lock.tryLock()) {
+            getLogger().error("get lock fail");
+            return;
+        }
 
         try {
+            getLogger().error("OnTrigger: " + String.valueOf(consumer));
+
             String topic = context.getProperty(TOPIC).getValue();
             Set<MessageQueue> mqs = consumer.fetchSubscribeMessageQueues(topic);
-
-            getLogger().info("read topic:" + topic);
-
             for (MessageQueue messageQueue : mqs) {
-                long offSet = consumer.getOffsetStore().readOffset(messageQueue, ReadOffsetType.MEMORY_FIRST_THEN_STORE);
-                getLogger().info("read from offset:" + offSet);
+                long offSet = messageQueueOffsetMap.get(messageQueue);
                 PullResultExt pullResult = (PullResultExt) consumer.pull(messageQueue, (String) null, offSet, 100);
-                consumer.updateConsumeOffset(messageQueue, pullResult.getNextBeginOffset());
-                getLogger().info("save offset:" + pullResult.getNextBeginOffset());
                 switch (pullResult.getPullStatus()) {
                     case FOUND:
                         List<MessageExt> messageExtList = pullResult.getMsgFoundList();
@@ -113,7 +117,6 @@ public class GetRocketMQ extends AbstractProcessor {
                             } else {
                                 final long millis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
                                 session.getProvenanceReporter().receive(flowFile, "rockemq://", "Received RocketMQ RocketMQMessage", millis);
-                                getLogger().info("Successfully received {} ({}) from RocketMQ in {} millis", new Object[]{flowFile, flowFile.getSize(), millis});
                                 session.transfer(flowFile, SUCCESS);
                             }
                         }
@@ -127,46 +130,63 @@ public class GetRocketMQ extends AbstractProcessor {
                     default:
                         break;
                 }
+                consumer.updateConsumeOffset(messageQueue, pullResult.getNextBeginOffset());
+                messageQueueOffsetMap.put(messageQueue, pullResult.getNextBeginOffset());
+                getLogger().error("topic: " + topic
+                        + ", message queue: " + messageQueue
+                        + ", start offset: " + offSet
+                        + ", next offset: " + pullResult.getNextBeginOffset());
             }
         } catch (Exception e) {
             getLogger().error("consumer fail:", e);
+        } finally {
+            lock.unlock();
+            getLogger().error("release lock");
         }
-        getLogger().info("finished " + System.currentTimeMillis());
+        getLogger().error("finished " + System.currentTimeMillis());
     }
 
 
     @OnScheduled
     public void onScheduled(final ProcessContext context) {
-        getLogger().info("OnScheduled:" + String.valueOf(consumer));
-        if (consumer == null) {
-            String consumerGroupId = context.getProperty(CONSUMER_GROUP_ID).getValue();
-            String instanceName = context.getProperty(INSTANCE_NAME).getValue();
-            consumer = new DefaultMQPullConsumer(consumerGroupId);
-            consumer.setNamesrvAddr("192.168.4.64:9876");
-            consumer.setInstanceName(instanceName);
-            try {
+        try {
+            getLogger().error("OnScheduled:" + String.valueOf(consumer));
+            if (consumer == null) {
+                String consumerGroupId = context.getProperty(CONSUMER_GROUP_ID).getValue();
+                String instanceName = context.getProperty(INSTANCE_NAME).getValue();
+                consumer = new DefaultMQPullConsumer(consumerGroupId);
+                consumer.setNamesrvAddr("192.168.4.64:9876");
+                consumer.setInstanceName(instanceName);
                 consumer.start();
-            } catch (Exception e) {
-                getLogger().error("Start fail", e.getStackTrace());
+
+                messageQueueOffsetMap.clear();
+                String topic = context.getProperty(TOPIC).getValue();
+                Set<MessageQueue> mqs = consumer.fetchSubscribeMessageQueues(topic);
+                for (MessageQueue messageQueue : mqs) {
+                    long offSet = consumer.maxOffset(messageQueue);
+                    messageQueueOffsetMap.put(messageQueue, offSet);
+                }
             }
+        } catch (Exception e) {
+            getLogger().error("start fail", e.getStackTrace());
         }
     }
 
     @OnDisabled
     public void onDisabled() {
-        getLogger().info("OnDisabled:" + String.valueOf(consumer));
+        getLogger().error("OnDisabled:" + String.valueOf(consumer));
         invalidConsumer();
     }
 
     @OnUnscheduled
     public void onUnscheduled() {
-        getLogger().info("OnUnscheduled:" + String.valueOf(consumer));
+        getLogger().error("OnUnscheduled:" + String.valueOf(consumer));
         invalidConsumer();
     }
 
     @OnStopped
     public void stopConsumer() {
-        getLogger().info("OnStopped:" + String.valueOf(consumer));
+        getLogger().error("OnStopped:" + String.valueOf(consumer));
         invalidConsumer();
     }
 
