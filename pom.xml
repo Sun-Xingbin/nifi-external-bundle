@@ -11,20 +11,25 @@
         <version>1.9.2</version>
     </parent>
 
-    <artifactId>nifi-rocketmq-bundle</artifactId>
+    <artifactId>nifi-external-bundle</artifactId>
     <version>0.1.0</version>
     <packaging>pom</packaging>
 
-    <dependencies>
-        <dependency>
-            <groupId>org.apache.rocketmq</groupId>
-            <artifactId>rocketmq-client</artifactId>
-            <version>4.4.0</version>
-        </dependency>
-    </dependencies>
 
     <modules>
         <module>nifi-rocketmq-processors</module>
         <module>nifi-rocketmq-nar</module>
+        <module>nifi-redis-processors</module>
+        <module>nifi-redis-nar</module>
     </modules>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.9.8</version>
+        </dependency>
+    </dependencies>
+
+
 </project>

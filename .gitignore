@@ -78,3 +78,8 @@ fabric.properties
 hs_err_pid*
 
 .idea/
+*/target/**
+*/*.iml
+/target/
+nifi-redis-processors/target/generated-sources/
+nifi-rocketmq-processors/target/generated-sources/

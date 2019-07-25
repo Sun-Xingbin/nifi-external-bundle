@@ -7,7 +7,7 @@
 
     <parent>
         <groupId>org.apache.nifi</groupId>
-        <artifactId>nifi-rocketmq-bundle</artifactId>
+        <artifactId>nifi-external-bundle</artifactId>
         <version>0.1.0</version>
     </parent>
 
@@ -46,6 +46,13 @@
             <version>RELEASE</version>
             <scope>compile</scope>
         </dependency>
+
+        <dependency>
+            <groupId>org.apache.rocketmq</groupId>
+            <artifactId>rocketmq-client</artifactId>
+            <version>4.4.0</version>
+        </dependency>
+
     </dependencies>
 
 </project>
