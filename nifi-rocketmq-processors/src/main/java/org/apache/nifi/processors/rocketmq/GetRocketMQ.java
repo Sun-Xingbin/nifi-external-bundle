@@ -55,6 +55,15 @@ public class GetRocketMQ extends AbstractProcessor {
             .expressionLanguageSupported(ExpressionLanguageScope.NONE)
             .build();
 
+    private final PropertyDescriptor NAME_SRV_ADR = new PropertyDescriptor.Builder()
+            .name("NAME_SRV_ADR")
+            .displayName("NAME_SRV_ADR")
+            .description("NAME_SRV_ADR")
+            .required(true)
+            .addValidator(StandardValidators.NON_BLANK_VALIDATOR)
+            .expressionLanguageSupported(ExpressionLanguageScope.NONE)
+            .build();
+
     private final PropertyDescriptor INSTANCE_NAME = new PropertyDescriptor.Builder()
             .name("INSTANCE_NAME")
             .displayName("INSTANCE_NAME")
@@ -73,6 +82,7 @@ public class GetRocketMQ extends AbstractProcessor {
         List<PropertyDescriptor> descriptors = new ArrayList<>();
         descriptors.add(TOPIC);
         descriptors.add(CONSUMER_GROUP_ID);
+        descriptors.add(NAME_SRV_ADR);
         descriptors.add(INSTANCE_NAME);
         DESCRIPTORS = Collections.unmodifiableList(descriptors);
         RELATIONSHIPS = Collections.singleton(SUCCESS);
@@ -98,7 +108,6 @@ public class GetRocketMQ extends AbstractProcessor {
         }
 
         try {
-            getLogger().error("OnTrigger: " + String.valueOf(consumer));
 
             String topic = context.getProperty(TOPIC).getValue();
             Set<MessageQueue> mqs = consumer.fetchSubscribeMessageQueues(topic);
@@ -132,30 +141,24 @@ public class GetRocketMQ extends AbstractProcessor {
                 }
                 consumer.updateConsumeOffset(messageQueue, pullResult.getNextBeginOffset());
                 messageQueueOffsetMap.put(messageQueue, pullResult.getNextBeginOffset());
-                getLogger().error("topic: " + topic
-                        + ", message queue: " + messageQueue
-                        + ", start offset: " + offSet
-                        + ", next offset: " + pullResult.getNextBeginOffset());
             }
         } catch (Exception e) {
             getLogger().error("consumer fail:", e);
         } finally {
             lock.unlock();
-            getLogger().error("release lock");
         }
-        getLogger().error("finished " + System.currentTimeMillis());
     }
 
 
     @OnScheduled
     public void onScheduled(final ProcessContext context) {
         try {
-            getLogger().error("OnScheduled:" + String.valueOf(consumer));
             if (consumer == null) {
                 String consumerGroupId = context.getProperty(CONSUMER_GROUP_ID).getValue();
+                String nameSrvAdr = context.getProperty(NAME_SRV_ADR).getValue();
                 String instanceName = context.getProperty(INSTANCE_NAME).getValue();
                 consumer = new DefaultMQPullConsumer(consumerGroupId);
-                consumer.setNamesrvAddr("192.168.4.64:9876");
+                consumer.setNamesrvAddr(nameSrvAdr);
                 consumer.setInstanceName(instanceName);
                 consumer.start();
 
@@ -174,19 +177,19 @@ public class GetRocketMQ extends AbstractProcessor {
 
     @OnDisabled
     public void onDisabled() {
-        getLogger().error("OnDisabled:" + String.valueOf(consumer));
+        getLogger().info("OnDisabled:" + String.valueOf(consumer));
         invalidConsumer();
     }
 
     @OnUnscheduled
     public void onUnscheduled() {
-        getLogger().error("OnUnscheduled:" + String.valueOf(consumer));
+        getLogger().info("OnUnscheduled:" + String.valueOf(consumer));
         invalidConsumer();
     }
 
     @OnStopped
     public void stopConsumer() {
-        getLogger().error("OnStopped:" + String.valueOf(consumer));
+        getLogger().info("OnStopped:" + String.valueOf(consumer));
         invalidConsumer();
     }
 

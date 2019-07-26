@@ -1,1 +1,3 @@
-/Users/sunxingbin/IdeaProjects/nifi-rocketmq-bundle/nifi-rocketmq-processors/src/main/java/org/apache/nifi/processors/rocketmq/GetRocketMQ.java
+D:\workspace\leiw_nifi\nifi-rocketmq-processors\src\main\java\org\apache\nifi\processors\rocketmq\SingleMessageQueueSelector.java
+D:\workspace\leiw_nifi\nifi-rocketmq-processors\src\main\java\org\apache\nifi\processors\rocketmq\GetRocketMQ.java
+D:\workspace\leiw_nifi\nifi-rocketmq-processors\src\main\java\org\apache\nifi\processors\rocketmq\PutRocketMQ.java

@@ -1,2 +1,5 @@
-org/apache/nifi/processors/rocketmq/GetRocketMQ$1.class
-org/apache/nifi/processors/rocketmq/GetRocketMQ.class
+org\apache\nifi\processors\rocketmq\GetRocketMQ.class
+org\apache\nifi\processors\rocketmq\GetRocketMQ$1.class
+org\apache\nifi\processors\rocketmq\PutRocketMQ$1.class
+org\apache\nifi\processors\rocketmq\PutRocketMQ.class
+org\apache\nifi\processors\rocketmq\SingleMessageQueueSelector.class
