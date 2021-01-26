@@ -29,15 +29,15 @@ import java.util.concurrent.locks.ReentrantLock;
 @Tags({"RocketMQ", "Get"})
 public class GetRocketMQ extends AbstractProcessor {
 
-    private static final List<PropertyDescriptor> DESCRIPTORS;
+    private final List<PropertyDescriptor> descriptors;
 
-    private static final Set<Relationship> RELATIONSHIPS;
+    private final Set<Relationship> relationships;
 
-    private static final ReentrantLock LOCK = new ReentrantLock();
+    private final ReentrantLock lock = new ReentrantLock();
 
     private final Map<MessageQueue, Long> messageQueueOffsetMap = new LinkedHashMap<>();
 
-    private final PropertyDescriptor TOPIC = new PropertyDescriptor.Builder()
+    private final PropertyDescriptor topicDescriptor = new PropertyDescriptor.Builder()
             .name("TOPIC")
             .displayName("TOPIC")
             .description("TOPIC")
@@ -46,7 +46,7 @@ public class GetRocketMQ extends AbstractProcessor {
             .expressionLanguageSupported(ExpressionLanguageScope.NONE)
             .build();
 
-    private final PropertyDescriptor CONSUMER_GROUP_ID = new PropertyDescriptor.Builder()
+    private final PropertyDescriptor consumerGroupIdDescriptor = new PropertyDescriptor.Builder()
             .name("CONSUMER_GROUP_ID")
             .displayName("CONSUMER_GROUP_ID")
             .description("CONSUMER_GROUP_ID")
@@ -55,7 +55,7 @@ public class GetRocketMQ extends AbstractProcessor {
             .expressionLanguageSupported(ExpressionLanguageScope.NONE)
             .build();
 
-    private final PropertyDescriptor INSTANCE_NAME = new PropertyDescriptor.Builder()
+    private final PropertyDescriptor instanceNameDescriptor = new PropertyDescriptor.Builder()
             .name("INSTANCE_NAME")
             .displayName("INSTANCE_NAME")
             .description("INSTANCE_NAME")
@@ -64,35 +64,35 @@ public class GetRocketMQ extends AbstractProcessor {
             .expressionLanguageSupported(ExpressionLanguageScope.NONE)
             .build();
 
-    private final Relationship SUCCESS_RELATIONSHIP = new Relationship.Builder()
+    private final Relationship successRelationship = new Relationship.Builder()
             .name("SUCCESS")
             .description("Success relationship")
             .build();
 
     {
-        List<PropertyDescriptor> descriptors = new ArrayList<>();
-        descriptors.add(TOPIC);
-        descriptors.add(CONSUMER_GROUP_ID);
-        descriptors.add(INSTANCE_NAME);
-        DESCRIPTORS = Collections.unmodifiableList(descriptors);
-        RELATIONSHIPS = Collections.singleton(SUCCESS_RELATIONSHIP);
+        List<PropertyDescriptor> currentDescriptors = new ArrayList<>();
+        currentDescriptors.add(topicDescriptor);
+        currentDescriptors.add(consumerGroupIdDescriptor);
+        currentDescriptors.add(instanceNameDescriptor);
+        descriptors = Collections.unmodifiableList(currentDescriptors);
+        relationships = Collections.singleton(successRelationship);
     }
 
     private volatile DefaultMQPullConsumer consumer;
 
     @Override
     public List<PropertyDescriptor> getSupportedPropertyDescriptors() {
-        return DESCRIPTORS;
+        return descriptors;
     }
 
     @Override
     public Set<Relationship> getRelationships() {
-        return RELATIONSHIPS;
+        return relationships;
     }
 
     @Override
     public void onTrigger(ProcessContext context, final ProcessSession session) throws ProcessException {
-        if (!LOCK.tryLock()) {
+        if (!lock.tryLock()) {
             getLogger().error("get lock fail");
             return;
         }
@@ -100,7 +100,7 @@ public class GetRocketMQ extends AbstractProcessor {
         try {
             getLogger().info("OnTrigger: " + consumer);
 
-            String topic = context.getProperty(this.TOPIC).getValue();
+            String topic = context.getProperty(this.topicDescriptor).getValue();
             Set<MessageQueue> mqs = consumer.fetchSubscribeMessageQueues(topic);
             for (MessageQueue messageQueue : mqs) {
                 long offSet = messageQueueOffsetMap.get(messageQueue);
@@ -116,7 +116,7 @@ public class GetRocketMQ extends AbstractProcessor {
                         } else {
                             final long millis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
                             session.getProvenanceReporter().receive(flowFile, "rockemq://", "Received RocketMQ RocketMQMessage", millis);
-                            session.transfer(flowFile, SUCCESS_RELATIONSHIP);
+                            session.transfer(flowFile, successRelationship);
                         }
                     }
                 } else {
@@ -134,7 +134,7 @@ public class GetRocketMQ extends AbstractProcessor {
         } catch (Exception e) {
             getLogger().error("consumer fail:", e);
         } finally {
-            LOCK.unlock();
+            lock.unlock();
             getLogger().info("release lock");
         }
     }
@@ -152,8 +152,8 @@ public class GetRocketMQ extends AbstractProcessor {
                 return;
             }
             try {
-                String consumerGroupId = context.getProperty(this.CONSUMER_GROUP_ID).getValue();
-                String instanceName = context.getProperty(this.INSTANCE_NAME).getValue();
+                String consumerGroupId = context.getProperty(this.consumerGroupIdDescriptor).getValue();
+                String instanceName = context.getProperty(this.instanceNameDescriptor).getValue();
                 consumer = new DefaultMQPullConsumer(consumerGroupId);
                 // TODO set the address by yourself
                 consumer.setNamesrvAddr("ip:port");
@@ -161,7 +161,7 @@ public class GetRocketMQ extends AbstractProcessor {
                 consumer.start();
 
                 messageQueueOffsetMap.clear();
-                String topic = context.getProperty(this.TOPIC).getValue();
+                String topic = context.getProperty(this.topicDescriptor).getValue();
                 Set<MessageQueue> mqs = consumer.fetchSubscribeMessageQueues(topic);
                 for (MessageQueue messageQueue : mqs) {
                     long offSet = consumer.maxOffset(messageQueue);
