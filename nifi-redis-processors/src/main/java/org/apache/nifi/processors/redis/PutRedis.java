@@ -32,11 +32,11 @@ public class PutRedis extends AbstractProcessor {
 
     private final ObjectMapper mapper = new ObjectMapper();
 
-    private static final Set<Relationship> RELATIONSHIPS;
+    private final Set<Relationship> relationships;
 
-    private static final List<PropertyDescriptor> DESCRIPTORS;
+    private final List<PropertyDescriptor> descriptors;
 
-    private static final PropertyDescriptor KEY = new PropertyDescriptor.Builder()
+    private final PropertyDescriptor keyDescriptor = new PropertyDescriptor.Builder()
             .name("KEY")
             .displayName("KEY")
             .description("KEY")
@@ -45,7 +45,7 @@ public class PutRedis extends AbstractProcessor {
             .expressionLanguageSupported(ExpressionLanguageScope.NONE)
             .build();
 
-    private static final PropertyDescriptor VALUE = new PropertyDescriptor.Builder()
+    private static final PropertyDescriptor valueDescriptor = new PropertyDescriptor.Builder()
             .name("VALUE")
             .displayName("VALUE")
             .description("VALUE")
@@ -54,7 +54,7 @@ public class PutRedis extends AbstractProcessor {
             .expressionLanguageSupported(ExpressionLanguageScope.NONE)
             .build();
 
-    private static final PropertyDescriptor TTL_SECOND = new PropertyDescriptor.Builder()
+    private static final PropertyDescriptor ttlSecondDescriptor = new PropertyDescriptor.Builder()
             .name("TTL_SECOND")
             .displayName("TTL_SECOND")
             .description("TTL_SECOND")
@@ -63,38 +63,38 @@ public class PutRedis extends AbstractProcessor {
             .expressionLanguageSupported(ExpressionLanguageScope.NONE)
             .build();
 
-    private static final Relationship SUCCESS = new Relationship.Builder()
+    private final Relationship successRelationship = new Relationship.Builder()
             .name("success")
             .description("Files that have been successfully written to redis are transferred to this relationship")
             .build();
 
-    private static final Relationship FAILURE = new Relationship.Builder()
+    private final Relationship failureRelationship = new Relationship.Builder()
             .name("failure")
             .description(
                     "Files that could not be written to redis for some reason are transferred to this relationship")
             .build();
 
-    static {
+    {
         final Set<Relationship> relationshipSet = new HashSet<>();
-        relationshipSet.add(SUCCESS);
-        relationshipSet.add(FAILURE);
-        RELATIONSHIPS = Collections.unmodifiableSet(relationshipSet);
+        relationshipSet.add(successRelationship);
+        relationshipSet.add(failureRelationship);
+        relationships = Collections.unmodifiableSet(relationshipSet);
 
-        List<PropertyDescriptor> descriptors = new ArrayList<>();
-        descriptors.add(KEY);
-        descriptors.add(VALUE);
-        descriptors.add(TTL_SECOND);
-        DESCRIPTORS = Collections.unmodifiableList(descriptors);
+        List<PropertyDescriptor> currentDescriptors = new ArrayList<>();
+        currentDescriptors.add(keyDescriptor);
+        currentDescriptors.add(valueDescriptor);
+        currentDescriptors.add(ttlSecondDescriptor);
+        descriptors = Collections.unmodifiableList(currentDescriptors);
     }
 
     @Override
     public List<PropertyDescriptor> getSupportedPropertyDescriptors() {
-        return DESCRIPTORS;
+        return descriptors;
     }
 
     @Override
     public Set<Relationship> getRelationships() {
-        return RELATIONSHIPS;
+        return relationships;
     }
 
     @Override
@@ -107,9 +107,9 @@ public class PutRedis extends AbstractProcessor {
         FlowFile flowfile = session.get();
 
         session.read(flowfile, in -> {
-            String key = context.getProperty(KEY).getValue();
-            String topic = context.getProperty(VALUE).getValue();
-            int ttlSecond = Integer.parseInt(context.getProperty(TTL_SECOND).getValue());
+            String key = context.getProperty(keyDescriptor).getValue();
+            String topic = context.getProperty(valueDescriptor).getValue();
+            int ttlSecond = Integer.parseInt(context.getProperty(ttlSecondDescriptor).getValue());
             String json = IOUtils.toString(in);
             Map<String, String> map = mapper.readValue(json, new TypeReference<Map<String, String>>() {
             });
@@ -122,7 +122,7 @@ public class PutRedis extends AbstractProcessor {
             jedisCluster.expire(redisKey, ttlSecond);
         });
         session.getProvenanceReporter().send(flowfile, "redis");
-        session.transfer(flowfile, SUCCESS);
+        session.transfer(flowfile, successRelationship);
     }
 
 
@@ -159,22 +159,22 @@ public class PutRedis extends AbstractProcessor {
     @OnDisabled
     public void onDisabled() {
         getLogger().info("OnDisabled:" + jedisCluster);
-        invalidConsumer();
+        invalidJedisClient();
     }
 
     @OnUnscheduled
     public void onUnscheduled() {
         getLogger().info("OnUnscheduled:" + jedisCluster);
-        invalidConsumer();
+        invalidJedisClient();
     }
 
     @OnStopped
     public void stopConsumer() {
         getLogger().info("OnStopped:" + jedisCluster);
-        invalidConsumer();
+        invalidJedisClient();
     }
 
-    private synchronized void invalidConsumer() {
+    private synchronized void invalidJedisClient() {
         if (jedisCluster != null) {
             try {
                 jedisCluster.close();
