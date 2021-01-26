@@ -8,7 +8,7 @@ GetRocketMQ processor, which reads message from RocketMQ.
 
 # nifi-redis-bundle
 
-PutRedis processor, which extractd key and value from flow file, then put them into redis.
+PutRedis processor, which extracts key and value from flow file, then puts them into redis.
 
 
 
