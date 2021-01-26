@@ -28,14 +28,6 @@ import java.util.*;
 @Tags({"PutRedis", "Redis"})
 public class PutRedis extends AbstractProcessor {
 
-    private volatile JedisCluster jedisCluster;
-
-    private final ObjectMapper mapper = new ObjectMapper();
-
-    private final Set<Relationship> relationships;
-
-    private final List<PropertyDescriptor> descriptors;
-
     private final PropertyDescriptor keyDescriptor = new PropertyDescriptor.Builder()
             .name("KEY")
             .displayName("KEY")
@@ -74,6 +66,10 @@ public class PutRedis extends AbstractProcessor {
                     "Files that could not be written to redis for some reason are transferred to this relationship")
             .build();
 
+    private final Set<Relationship> relationships;
+
+    private final List<PropertyDescriptor> descriptors;
+
     {
         final Set<Relationship> relationshipSet = new HashSet<>();
         relationshipSet.add(successRelationship);
@@ -86,6 +82,11 @@ public class PutRedis extends AbstractProcessor {
         currentDescriptors.add(ttlSecondDescriptor);
         descriptors = Collections.unmodifiableList(currentDescriptors);
     }
+
+    private volatile JedisCluster jedisCluster;
+
+    private final ObjectMapper mapper = new ObjectMapper();
+
 
     @Override
     public List<PropertyDescriptor> getSupportedPropertyDescriptors() {

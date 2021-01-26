@@ -29,14 +29,6 @@ import java.util.concurrent.locks.ReentrantLock;
 @Tags({"RocketMQ", "Get"})
 public class GetRocketMQ extends AbstractProcessor {
 
-    private final List<PropertyDescriptor> descriptors;
-
-    private final Set<Relationship> relationships;
-
-    private final ReentrantLock lock = new ReentrantLock();
-
-    private final Map<MessageQueue, Long> messageQueueOffsetMap = new LinkedHashMap<>();
-
     private final PropertyDescriptor topicDescriptor = new PropertyDescriptor.Builder()
             .name("TOPIC")
             .displayName("TOPIC")
@@ -69,6 +61,10 @@ public class GetRocketMQ extends AbstractProcessor {
             .description("Success relationship")
             .build();
 
+    private final List<PropertyDescriptor> descriptors;
+
+    private final Set<Relationship> relationships;
+
     {
         List<PropertyDescriptor> currentDescriptors = new ArrayList<>();
         currentDescriptors.add(topicDescriptor);
@@ -79,6 +75,11 @@ public class GetRocketMQ extends AbstractProcessor {
     }
 
     private volatile DefaultMQPullConsumer consumer;
+
+    private final ReentrantLock lock = new ReentrantLock();
+
+    private final Map<MessageQueue, Long> messageQueueOffsetMap = new LinkedHashMap<>();
+
 
     @Override
     public List<PropertyDescriptor> getSupportedPropertyDescriptors() {
@@ -143,6 +144,7 @@ public class GetRocketMQ extends AbstractProcessor {
     @OnScheduled
     public void onScheduled(final ProcessContext context) {
         getLogger().info("OnScheduled:" + consumer);
+
         if (consumer != null) {
             return;
         }
@@ -194,7 +196,7 @@ public class GetRocketMQ extends AbstractProcessor {
     private synchronized void invalidConsumer() {
         if (consumer != null) {
             consumer.shutdown();
+            consumer = null;
         }
-        consumer = null;
     }
 }
