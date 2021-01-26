@@ -28,11 +28,12 @@ import java.util.*;
 @Tags({"PutRedis", "Redis"})
 public class PutRedis extends AbstractProcessor {
 
-    private JedisCluster jedisCluster;
+    private volatile JedisCluster jedisCluster;
 
     private final ObjectMapper mapper = new ObjectMapper();
 
     private static final Set<Relationship> RELATIONSHIPS;
+
     private static final List<PropertyDescriptor> DESCRIPTORS;
 
     private static final PropertyDescriptor KEY = new PropertyDescriptor.Builder()
@@ -100,7 +101,8 @@ public class PutRedis extends AbstractProcessor {
     public void onTrigger(final ProcessContext context,
                           final ProcessSession session) throws ProcessException {
         ensureJedisPrepared();
-        getLogger().warn("OnTrigger: " + String.valueOf(jedisCluster));
+
+        getLogger().info("OnTrigger: " + jedisCluster);
 
         FlowFile flowfile = session.get();
 
@@ -129,40 +131,46 @@ public class PutRedis extends AbstractProcessor {
             return;
         }
 
-        try {
-            Set<HostAndPort> jedisClusterNodes = new HashSet<>();
-            HostAndPort jedisNode = new HostAndPort("192.168.2.234", 7003);
-            jedisClusterNodes.add(jedisNode);
+        synchronized (PutRedis.class) {
+            if (jedisCluster != null) {
+                return;
+            }
+            try {
+                Set<HostAndPort> jedisClusterNodes = new HashSet<>();
+                // TODO set host and port by yourself
+                HostAndPort jedisNode = new HostAndPort("ip", 7003);
+                jedisClusterNodes.add(jedisNode);
 
-            GenericObjectPoolConfig poolConfig = new GenericObjectPoolConfig();
-            poolConfig.setMaxTotal(2000);
-            poolConfig.setMaxIdle(100);
-            poolConfig.setMaxWaitMillis(1000 * 100);
-            poolConfig.setTestOnBorrow(true);
+                GenericObjectPoolConfig poolConfig = new GenericObjectPoolConfig();
+                poolConfig.setMaxTotal(2000);
+                poolConfig.setMaxIdle(100);
+                poolConfig.setMaxWaitMillis(1000 * 100);
+                poolConfig.setTestOnBorrow(true);
 
-            jedisCluster = new JedisCluster(jedisClusterNodes, poolConfig);
-            getLogger().info("jedis prepared :" + jedisCluster);
-        } catch (Exception e) {
-            getLogger().error("jedis prepare fail: ", e);
-            throw new RuntimeException(e);
+                jedisCluster = new JedisCluster(jedisClusterNodes, poolConfig);
+                getLogger().info("jedis prepared :" + jedisCluster);
+            } catch (Exception e) {
+                getLogger().error("jedis prepare fail: ", e);
+                throw new RuntimeException(e);
+            }
         }
     }
 
     @OnDisabled
     public void onDisabled() {
-        getLogger().warn("OnDisabled:" + String.valueOf(jedisCluster));
+        getLogger().info("OnDisabled:" + jedisCluster);
         invalidConsumer();
     }
 
     @OnUnscheduled
     public void onUnscheduled() {
-        getLogger().warn("OnUnscheduled:" + String.valueOf(jedisCluster));
+        getLogger().info("OnUnscheduled:" + jedisCluster);
         invalidConsumer();
     }
 
     @OnStopped
     public void stopConsumer() {
-        getLogger().warn("OnStopped:" + String.valueOf(jedisCluster));
+        getLogger().info("OnStopped:" + jedisCluster);
         invalidConsumer();
     }
 
