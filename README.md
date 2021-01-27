@@ -4,11 +4,11 @@
 
 [RocketMQ](https://rocketmq.apache.org/) processor for [Apache NIFI](https://nifi.apache.org).
 
-GetRocketMQ processor, which reads message from RocketMQ.
+GetRocketMQ processor, which reads messages from RocketMQ.
 
 # nifi-redis-bundle
 
-PutRedis processor, which extracts key and value from flow file, then puts them into redis.
+PutRedis processor, which extracts key and value from flow file, then puts them into Redis.
 
 
 
@@ -18,11 +18,11 @@ PutRedis processor, which extracts key and value from flow file, then puts them 
 
 2. `mvn clean install`
 
-3. Copy `nifi-rocketmq-nar/target/nifi-rocketmq-nar-0.1.0.nar` to `$NIFI_HOME/lib/`
+3. copy `nifi-rocketmq-nar/target/nifi-rocketmq-nar-0.1.0.nar` to `$NIFI_HOME/lib/`
 
-4. Copy `nifi-redis-nar/target/nifi-redis-nar-0.1.0.nar` to `$NIFI_HOME/lib/`
+4. copy `nifi-redis-nar/target/nifi-redis-nar-0.1.0.nar` to `$NIFI_HOME/lib/`
 
-5. restart NIFI
+5. restart NiFi
 
 
 ## License
