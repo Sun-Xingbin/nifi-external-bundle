@@ -85,3 +85,8 @@ hs_err_pid*
 /target/
 nifi-redis-processors/target/generated-sources/
 nifi-rocketmq-processors/target/generated-sources/
+target/
+target/
+target/
+target/
+target/
