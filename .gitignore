@@ -81,12 +81,8 @@ hs_err_pid*
 
 .idea/
 */target/**
-*/*.iml
+*.iml
 /target/
 nifi-redis-processors/target/generated-sources/
 nifi-rocketmq-processors/target/generated-sources/
-target/
-target/
-target/
-target/
-target/
+
